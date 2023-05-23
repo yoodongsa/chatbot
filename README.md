@@ -4,6 +4,7 @@
 
 - 학습 데이터 셋 출처: (https://github.com/songys/Chatbot_data)
 
+![1](./images/1.png)
 
 - TF-IDF 벡터화와 Cosine Similarity
 
