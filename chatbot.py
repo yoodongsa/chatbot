@@ -1,37 +1,47 @@
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import pandas as pd                      # CSV 파일을 읽기 위해 pandas 모듈 사용
+import Levenshtein                      # 레벤슈타인 거리 계산을 위한 외부 라이브러리 (pip install python-Levenshtein)
 
 class SimpleChatBot:
     def __init__(self, filepath):
+        # 생성자에서 데이터 파일을 로드하여 질문과 답변 리스트로 저장
         self.questions, self.answers = self.load_data(filepath)
-        self.vectorizer = TfidfVectorizer()
-        self.question_vectors = self.vectorizer.fit_transform(self.questions)  # 질문을 TF-IDF로 변환
 
     def load_data(self, filepath):
-        data = pd.read_csv(filepath)
-        questions = data['Q'].tolist()  # 질문열만 뽑아 파이썬 리스트로 저장
-        answers = data['A'].tolist()   # 답변열만 뽑아 파이썬 리스트로 저장
-        return questions, answers
+        """
+        CSV 파일에서 질문(Q)과 답변(A) 데이터를 읽어와 각각 리스트로 반환하는 함수
+        """
+        data = pd.read_csv(filepath)         # CSV 파일을 읽어 DataFrame으로 저장
+        questions = data['Q'].tolist()       # 'Q' 열을 리스트로 변환해 질문 목록 생성
+        answers = data['A'].tolist()         # 'A' 열을 리스트로 변환해 답변 목록 생성
+        return questions, answers            # 질문과 답변 리스트 반환
 
     def find_best_answer(self, input_sentence):
-        input_vector = self.vectorizer.transform([input_sentence])
-        similarities = cosine_similarity(input_vector, self.question_vectors) # 코사인 유사도 값들을 저장
-        
-        best_match_index = similarities.argmax()   # 유사도 값이 가장 큰 값의 인덱스를 반환
-        return self.answers[best_match_index]
+        """
+        사용자 입력 문장과 레벤슈타인 거리가 가장 짧은 질문을 찾아
+        해당 질문에 대응하는 답변을 반환하는 함수
+        """
+        min_distance = float('inf')          # 가장 작은 거리 값을 저장 (초기값은 무한대)
+        best_match_index = -1                # 가장 유사한 질문의 인덱스 저장용
 
-# CSV 파일 경로를 지정하세요.
+        # 모든 질문에 대해 레벤슈타인 거리 계산
+        for idx, question in enumerate(self.questions):
+            distance = Levenshtein.distance(input_sentence, question)  # 입력과 질문 간의 레벤슈타인 거리 계산
+            if distance < min_distance:
+                min_distance = distance        # 더 작은 거리를 발견하면 갱신
+                best_match_index = idx         # 해당 인덱스를 기억
+
+        return self.answers[best_match_index]  # 가장 유사한 질문에 대응하는 답변 반환
+
+# 학습용 CSV 파일 경로
 filepath = 'ChatbotData.csv'
 
-# 간단한 챗봇 인스턴스를 생성합니다.
+# 챗봇 객체 생성
 chatbot = SimpleChatBot(filepath)
 
-# '종료'라는 단어가 입력될 때까지 챗봇과의 대화를 반복합니다.
+# 사용자 입력을 반복적으로 받아서 응답하는 루프
 while True:
-    input_sentence = input('You: ')
-    if input_sentence.lower() == '종료':
+    input_sentence = input('You: ')           # 사용자로부터 질문 입력 받기
+    if input_sentence.lower() == '종료':       # '종료' 입력 시 대화 종료
         break
-    response = chatbot.find_best_answer(input_sentence)
-    print('Chatbot:', response)
-    
+    response = chatbot.find_best_answer(input_sentence)  # 최적의 응답 찾기
+    print('Chatbot:', response)               # 챗봇의 응답 출력

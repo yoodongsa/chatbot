@@ -1,42 +1,12 @@
 # 챗봇
 
-## TF-IDF와 Cosine Similarity를 이용한 챗봇 구현
+## 레벤슈타인을 이용한 챗봇 구현
 
-- 학습 데이터 셋 출처: (https://github.com/songys/Chatbot_data)
 
-![1](./images/1.png)
-
-- TF-IDF 벡터화와 Cosine Similarity
-
-- scikit-learn 설치
+- 레벤슈타인 설치
 
 ```
-pip install scikit-learn
-```
-
-- cosine_similarity.py
-
-```
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-# TfidfVectorizer 객체 생성
-vectorizer = TfidfVectorizer()
-
-# 한국어 문장들
-sentence1 = "저는 오늘 밥을 먹었습니다."
-sentence2 = "저는 어제 밥을 먹었습니다."
-
-# 문장들을 벡터화
-tfidf_matrix = vectorizer.fit_transform([sentence1, sentence2])
-
-# 문장1과 문장2의 코사인 유사도 계산
-cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
-
-print(f"문장 1: {sentence1}")
-print(f"문장 2: {sentence2}")
-print(f"두 문장의 코사인 유사도: {cosine_sim[0][0]}")
-
+pip install python-Levenshtein
 ```
 
 - 챗봇 구현
@@ -44,51 +14,67 @@ print(f"두 문장의 코사인 유사도: {cosine_sim[0][0]}")
 - chatbot.py 
 
 ```
-import pandas as pd
+import pandas as pd                      # CSV 파일을 읽기 위해 pandas 모듈 사용
+import Levenshtein                      # 레벤슈타인 거리 계산을 위한 외부 라이브러리 (pip install python-Levenshtein)
 
-# sklearn라는 머신러닝 라이브러리에서 TfidfVectorizer와 cosine_similarity를 불러옴
-# TfidfVectorizer는 문서의 텍스트 데이터를 벡터 형태로 변환하는데 사용하며, cosine_similarity는 두 벡터 간의 코사인 유사도를 계산
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-# 챗봇 클래스를 정의
 class SimpleChatBot:
-    # 챗봇 객체를 초기화하는 메서드, 초기화 시에는 입력된 데이터 파일을 로드하고, TfidfVectorizer를 사용해 질문 데이터를 벡터화함
     def __init__(self, filepath):
+        # 생성자에서 데이터 파일을 로드하여 질문과 답변 리스트로 저장
         self.questions, self.answers = self.load_data(filepath)
-        self.vectorizer = TfidfVectorizer()
-        self.question_vectors = self.vectorizer.fit_transform(self.questions)
 
-    # CSV 파일로부터 질문과 답변 데이터를 불러오는 메서드
     def load_data(self, filepath):
-        data = pd.read_csv(filepath)
-        questions = data['Q'].tolist()
-        questions = data['A'].tolist()
-        return questions, answers
+        """
+        CSV 파일에서 질문(Q)과 답변(A) 데이터를 읽어와 각각 리스트로 반환하는 함수
+        """
+        data = pd.read_csv(filepath)         # CSV 파일을 읽어 DataFrame으로 저장
+        questions = data['Q'].tolist()       # 'Q' 열을 리스트로 변환해 질문 목록 생성
+        answers = data['A'].tolist()         # 'A' 열을 리스트로 변환해 답변 목록 생성
+        return questions, answers            # 질문과 답변 리스트 반환
 
-    # 입력 문장에 가장 잘 맞는 답변을 찾는 메서드, 입력 문장을 벡터화하고, 이를 기존 질문 벡터들과 비교하여 가장 높은 유사도를 가진 질문의 답변을 반환함
     def find_best_answer(self, input_sentence):
-        # 사용자 입력 문장을 벡터화
-        input_vector = self.vectorizer.transform([input_sentence])
-        # 사용자 입력 벡터와 기존 질문 벡터들 간의 코사인 유사도를 계산
-        similarities = cosine_similarity(input_vector, self.question_vectors)
-        # 가장 유사도가 높은 질문의 인덱스를 찾음
-        best_match_index = similarities.argmax()
-        # 가장 유사한 질문에 해당하는 답변을 반환
-        return self.answers[best_match_index]
+        """
+        사용자 입력 문장과 레벤슈타인 거리가 가장 짧은 질문을 찾아
+        해당 질문에 대응하는 답변을 반환하는 함수
+        """
+        min_distance = float('inf')          # 가장 작은 거리 값을 저장 (초기값은 무한대)
+        best_match_index = -1                # 가장 유사한 질문의 인덱스 저장용
 
-# 데이터 파일의 경로를 지정합니다.
+        # 모든 질문에 대해 레벤슈타인 거리 계산
+        for idx, question in enumerate(self.questions):
+            distance = Levenshtein.distance(input_sentence, question)  # 입력과 질문 간의 레벤슈타인 거리 계산
+            if distance < min_distance:
+                min_distance = distance        # 더 작은 거리를 발견하면 갱신
+                best_match_index = idx         # 해당 인덱스를 기억
+
+        return self.answers[best_match_index]  # 가장 유사한 질문에 대응하는 답변 반환
+
+# 학습용 CSV 파일 경로
 filepath = 'ChatbotData.csv'
 
-# 챗봇 객체를 생성합니다.
+# 챗봇 객체 생성
 chatbot = SimpleChatBot(filepath)
 
-# '종료'라는 입력이 나올 때까지 사용자의 입력에 따라 챗봇의 응답을 출력하는 무한 루프를 실행합니다.
+# 사용자 입력을 반복적으로 받아서 응답하는 루프
 while True:
-    input_sentence = input('You: ')
-    if input_sentence.lower() == '종료':
+    input_sentence = input('You: ')           # 사용자로부터 질문 입력 받기
+    if input_sentence.lower() == '종료':       # '종료' 입력 시 대화 종료
         break
-    response = chatbot.find_best_answer(input_sentence)
-    print('Chatbot:', response)
+    response = chatbot.find_best_answer(input_sentence)  # 최적의 응답 찾기
+    print('Chatbot:', response)               # 챗봇의 응답 출력
+
+
+```
+
+- 결과값
+
+```
+
+You: 안녕하세요
+Chatbot: 안녕하세요.
+You: 뭐하세요
+Chatbot: 일해요.
+You: 졸려
+Chatbot: 오늘 일찍 주무세요.
+You: 종료
 
 ```
